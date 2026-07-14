@@ -1,0 +1,16 @@
+[package]
+name = "yamama"
+version = "0.0.1"
+edition = "2024"
+
+
+[dependencies]
+openssl = "0.10.81"
+srtp = "0.7"
+sha1 = "0.11.0"
+crc32fast = "1.5.0"
+hmac = "0.13.0"
+log = { version = "0.4.33", features = ["release_max_level_error"] }
+
+[dev-dependencies]
+env_logger = "0.11.11"
