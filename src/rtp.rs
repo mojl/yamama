@@ -67,7 +67,6 @@ pub struct RtpHeader {
     pub payload_type: u8,
     pub sequence_number: u16,
     pub ssrc: u32,
-    pub extensions: Vec<RtpExtension>,
 }
 
 impl RtpHeader {
@@ -87,7 +86,6 @@ impl RtpHeader {
             payload_type,
             sequence_number,
             ssrc,
-            extensions: Vec::new(),
         }
     }
 
