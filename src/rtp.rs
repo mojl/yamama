@@ -1,10 +1,11 @@
 pub struct RtpExtension {
     pub id: u8,
-    pub data: Box<[u8]>,
+    pub data_start: usize,
+    pub data_end: usize,
 }
 
 impl RtpExtension {
-    fn parse(buffer: &[u8]) -> (Vec<Self>, usize) {
+    fn parse(buffer: &[u8], offset: usize) -> (Vec<Self>, usize) {
         let profile = u16::from_be_bytes([buffer[0], buffer[1]]);
         let length_in_words = u16::from_be_bytes([buffer[2], buffer[3]]) as usize;
         let size = 4 + length_in_words * 4;
@@ -23,9 +24,12 @@ impl RtpExtension {
                     let id = buffer[i] >> 4;
                     let length = (buffer[i] & 0x0f) as usize + 1;
                     i += 1;
-                    let data = buffer[i..i + length].to_vec().into_boxed_slice();
+                    extensions.push(Self {
+                        id,
+                        data_start: offset + i,
+                        data_end: offset + i + length,
+                    });
                     i += length;
-                    extensions.push(Self { id, data });
                 }
             }
             0x1000 => {
@@ -38,9 +42,12 @@ impl RtpExtension {
                     let id = buffer[i];
                     let length = u16::from_be_bytes([buffer[i + 1], buffer[i + 2]]) as usize;
                     i += 3;
-                    let data = buffer[i..i + length].to_vec().into_boxed_slice();
+                    extensions.push(Self {
+                        id,
+                        data_start: offset + i,
+                        data_end: offset + i + length,
+                    });
                     i += length;
-                    extensions.push(Self { id, data });
                 }
             }
             _ => {
@@ -103,7 +110,7 @@ impl RtpPacket {
 
         let mut payload_start = header.size();
         let extensions = if header.has_extension {
-            let (extensions, length) = RtpExtension::parse(&packet[payload_start..]);
+            let (extensions, length) = RtpExtension::parse(&packet[payload_start..], payload_start);
             payload_start += length;
 
             log::debug!(
@@ -135,11 +142,13 @@ impl RtpPacket {
     }
 
     pub fn extension(&self, id: u8) -> Option<&[u8]> {
-        self.extensions
+        let extension = self
+            .extensions
             .as_ref()?
             .iter()
-            .find(|extension| extension.id == id)
-            .map(|extension| extension.data.as_ref())
+            .find(|extension| extension.id == id)?;
+
+        Some(&self.raw[extension.data_start..extension.data_end])
     }
 
     pub fn payload_type(&self) -> u8 {
