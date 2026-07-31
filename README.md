@@ -15,6 +15,7 @@ This is enough to write a basic SFU or a transport for an AI agent. Demos will b
 
 ## Working on
 
+- Getting closer to zero-copy
 - SCTP
 - Unit tests
 - Elimating potential panics (guard clauses around lengths)
