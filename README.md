@@ -13,6 +13,12 @@ Yamama is a developer friendly and sans I/O WebRTC implementation in Rust.
 
 This is enough to write a basic SFU or a transport for an AI agent. Demos will be published soon.
 
+## Working on
+
+- SCTP
+- Unit tests
+- Elimating potential panics (guard clauses around lengths)
+
 ## Contributing
 
 Yamama is not mature enough to accept issues or pull requests.
