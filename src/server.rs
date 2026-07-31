@@ -18,10 +18,6 @@ pub enum Action {
         destination: SocketAddr,
         payload: Vec<u8>,
     },
-    Media {
-        rtp: RtpPacket,
-        from: SocketAddr,
-    },
 }
 
 pub enum PacketKind {
@@ -43,15 +39,15 @@ impl Server {
         })
     }
 
-    pub fn drive(
+    pub fn drive<'b>(
         &mut self,
         packet: &[u8],
         from: SocketAddr,
         peer: Option<&mut Peer>,
-        buffer: &mut Vec<u8>,
+        buffer: &'b mut Vec<u8>,
         actions: &mut Vec<Action>,
         authenticate: impl Fn(&str) -> Option<&str>,
-    ) {
+    ) -> Option<RtpPacket<'b>> {
         log::trace!("received {} bytes from {}", packet.len(), from);
         actions.clear();
 
@@ -78,8 +74,7 @@ impl Server {
             PacketKind::Srtp => {
                 if let Some(peer) = peer {
                     if peer.unprotect(packet, buffer) {
-                        let rtp: RtpPacket = RtpPacket::new(std::mem::take(buffer));
-                        actions.push(Action::Media { rtp, from });
+                        return Some(RtpPacket::new(buffer));
                     }
                 }
             }
@@ -90,6 +85,8 @@ impl Server {
             }
             PacketKind::Unknown => log::debug!("ignoring unknown packet from {}", from),
         }
+
+        None
     }
 
     fn handle_stun(

@@ -94,17 +94,17 @@ impl RtpHeader {
     }
 }
 
-pub struct RtpPacket {
+pub struct RtpPacket<'a> {
     pub header: RtpHeader,
     pub extensions: Option<Vec<RtpExtension>>,
-    pub raw: Vec<u8>,
+    pub raw: &'a [u8],
     pub payload_start: usize,
     pub payload_end: usize,
 }
 
-impl RtpPacket {
-    pub fn new(packet: Vec<u8>) -> Self {
-        let header = RtpHeader::parse(&packet);
+impl<'a> RtpPacket<'a> {
+    pub fn new(packet: &'a [u8]) -> Self {
+        let header = RtpHeader::parse(packet);
 
         let mut payload_start = header.size();
         let extensions = if header.has_extension {

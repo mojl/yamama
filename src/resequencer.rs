@@ -3,12 +3,12 @@ use crate::rtp::RtpPacket;
 const SIZE: usize = 64;
 const DEFAULT_LOOKAHEAD: u16 = 3;
 
-struct Slot {
+struct Slot<'a> {
     seq: u16,
-    packet: Option<RtpPacket>,
+    packet: Option<RtpPacket<'a>>,
 }
 
-impl Slot {
+impl Slot<'_> {
     fn empty() -> Self {
         Self {
             seq: 0,
@@ -17,14 +17,14 @@ impl Slot {
     }
 }
 
-pub struct Resequencer {
-    slots: [Slot; SIZE],
+pub struct Resequencer<'a> {
+    slots: [Slot<'a>; SIZE],
     lookahead: u16,
     expected_seq: u16,
     highest_seq: u16,
 }
 
-impl Resequencer {
+impl<'a> Resequencer<'a> {
     pub fn new(start_sequence_number: u16) -> Self {
         Self::with_lookahead(start_sequence_number, DEFAULT_LOOKAHEAD)
     }
@@ -38,7 +38,7 @@ impl Resequencer {
         }
     }
 
-    pub fn add(&mut self, packet: RtpPacket) {
+    pub fn add(&mut self, packet: RtpPacket<'a>) {
         let seq = packet.header.sequence_number;
 
         let behind = self.expected_seq.wrapping_sub(seq);
@@ -64,7 +64,7 @@ impl Resequencer {
         }
     }
 
-    pub fn read(&mut self) -> Option<RtpPacket> {
+    pub fn read(&mut self) -> Option<RtpPacket<'a>> {
         let expected = self.expected_seq;
         let slot = &mut self.slots[self.index(expected)];
 
