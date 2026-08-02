@@ -28,11 +28,11 @@ pub enum PacketKind {
     Unknown,
 }
 
-pub struct Server {
+pub struct Engine {
     pub dtls_context: DtlsContext,
 }
 
-impl Server {
+impl Engine {
     pub fn new(cert: &X509Ref, key: &PKeyRef<Private>) -> Result<Self, ErrorStack> {
         Ok(Self {
             dtls_context: DtlsContext::new(cert, key)?,
