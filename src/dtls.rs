@@ -1,3 +1,4 @@
+use crate::sctp::Sctp;
 use openssl::error::ErrorStack;
 use openssl::pkey::{PKeyRef, Private};
 use openssl::ssl::{
@@ -10,7 +11,7 @@ use std::io::{self, Read, Write};
 const SRTP_PROFILES: &str = "SRTP_AES128_CM_SHA1_80:SRTP_AES128_CM_SHA1_32";
 const MTU: u32 = 1200;
 
-struct DatagramBio {
+pub struct DatagramBio {
     incoming: Vec<u8>,
     outgoing: Vec<u8>,
 }
@@ -88,6 +89,7 @@ enum State {
 
 pub struct DtlsSession {
     stream: SslStream<DatagramBio>,
+    sctp: Sctp,
     state: State,
 }
 
@@ -99,6 +101,7 @@ impl DtlsSession {
         let stream = SslStream::new(ssl, DatagramBio::new())?;
         Ok(Self {
             stream,
+            sctp: Sctp::new(),
             state: State::Handshaking,
         })
     }
@@ -111,14 +114,18 @@ impl DtlsSession {
         self.state == State::Connected
     }
 
-    pub fn handle_input(&mut self, packet: &[u8]) -> Result<Option<Vec<u8>>, SslError> {
+    pub fn handle_input(
+        &mut self,
+        packet: &[u8],
+        buffer: &mut Vec<u8>,
+    ) -> Result<Option<Vec<u8>>, SslError> {
         // we push the packet into the buffer
         self.stream.get_mut().push(packet);
 
         // openssl is handling everything here pretty much
         match self.state {
             State::Handshaking => self.handle_handshake()?,
-            State::Connected => self.handle_data()?,
+            State::Connected => self.handle_data(buffer)?,
         }
 
         let reply = self.stream.get_mut().take_outgoing();
@@ -139,12 +146,14 @@ impl DtlsSession {
         }
     }
 
-    fn handle_data(&mut self) -> Result<(), SslError> {
-        let mut buffer = [0u8; 2048];
+    fn handle_data(&mut self, buffer: &mut Vec<u8>) -> Result<(), SslError> {
+        let mut ssl_buffer = [0u8; 2048];
         loop {
-            match self.stream.ssl_read(&mut buffer) {
+            match self.stream.ssl_read(&mut ssl_buffer) {
                 Ok(0) => return Ok(()),
-                Ok(n) => log::trace!("dtls application data: {} bytes", n), // this is sctp!!!
+                Ok(n) => self
+                    .sctp
+                    .handle(&mut self.stream, &ssl_buffer[..n], buffer)?,
                 Err(e) if e.code() == ErrorCode::WANT_READ => return Ok(()),
                 Err(e) if e.code() == ErrorCode::WANT_WRITE => continue,
                 // apparently an error will only ever be reported if it would tear down the session

@@ -63,7 +63,9 @@ impl Engine {
             }
             PacketKind::Dtls => {
                 if let Some(peer) = peer {
-                    if let Some(payload) = peer.handle_dtls(&self.dtls_context, packet, actions) {
+                    if let Some(payload) =
+                        peer.handle_dtls(&self.dtls_context, packet, buffer, actions)
+                    {
                         actions.push(Action::Transmit {
                             destination: from,
                             payload,

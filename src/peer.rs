@@ -22,6 +22,7 @@ impl Peer {
         &mut self,
         dtls_context: &DtlsContext,
         packet: &[u8],
+        buffer: &mut Vec<u8>,
         actions: &mut Vec<Action>,
     ) -> Option<Vec<u8>> {
         if self.dtls.is_none() {
@@ -30,7 +31,7 @@ impl Peer {
 
         let session = self.dtls.as_mut()?;
 
-        let payload = match session.handle_input(packet) {
+        let payload = match session.handle_input(packet, buffer) {
             Ok(payload) => payload,
             Err(error) => {
                 log::warn!("dtls session with {} failed: {}", self.address, error);
