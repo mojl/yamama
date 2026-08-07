@@ -52,31 +52,19 @@ impl Peer {
         payload
     }
 
-    pub fn protect(&mut self, packet: &[u8], buffer: &mut Vec<u8>) -> bool {
-        match self.srtp.as_mut() {
-            Some(srtp) => srtp.protect(packet, buffer).is_ok(),
-            None => false,
-        }
+    pub fn protect(&mut self, buffer: &mut [u8], length: usize) -> Option<usize> {
+        self.srtp.as_mut()?.protect(buffer, length)
     }
 
-    pub fn protect_rtcp(&mut self, packet: &[u8], buffer: &mut Vec<u8>) -> bool {
-        match self.srtp.as_mut() {
-            Some(srtp) => srtp.protect_rtcp(packet, buffer).is_ok(),
-            None => false,
-        }
+    pub fn unprotect(&mut self, packet: &mut [u8]) -> Option<usize> {
+        self.srtp.as_mut()?.unprotect(packet)
     }
 
-    pub fn unprotect(&mut self, packet: &[u8], buffer: &mut Vec<u8>) -> bool {
-        match self.srtp.as_mut() {
-            Some(srtp) => srtp.unprotect(packet, buffer).is_ok(),
-            None => false,
-        }
+    pub fn protect_rtcp(&mut self, packet: &mut [u8]) -> Option<usize> {
+        None // unimplemented
     }
 
-    pub fn unprotect_rtcp(&mut self, packet: &[u8], buffer: &mut Vec<u8>) -> bool {
-        match self.srtp.as_mut() {
-            Some(srtp) => srtp.unprotect_rtcp(packet, buffer).is_ok(),
-            None => false,
-        }
+    pub fn unprotect_rtcp(&mut self, packet: &mut [u8]) -> Option<usize> {
+        None // unimplemented
     }
 }

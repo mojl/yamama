@@ -1,3 +1,8 @@
+const FIXED_HEADER_LEN: usize = 12;
+const CSRC_LEN: usize = 4;
+const EXTENSION_HEADER_LEN: usize = 4;
+const WORD_LEN: usize = 4;
+
 pub struct RtpExtension {
     pub id: u8,
     pub data_start: usize,
@@ -8,8 +13,8 @@ impl RtpExtension {
     fn parse(buffer: &[u8], offset: usize) -> (Vec<Self>, usize) {
         let profile = u16::from_be_bytes([buffer[0], buffer[1]]);
         let length_in_words = u16::from_be_bytes([buffer[2], buffer[3]]) as usize;
-        let size = 4 + length_in_words * 4;
-        let mut i = 4;
+        let size = EXTENSION_HEADER_LEN + length_in_words * WORD_LEN;
+        let mut i = EXTENSION_HEADER_LEN; // skip extention header
 
         let mut extensions = Vec::new();
 
@@ -90,7 +95,7 @@ impl RtpHeader {
     }
 
     fn size(&self) -> usize {
-        12 + (self.csrc_count as usize) * 4 // 12 for fixed header, 4 for each csrc
+        FIXED_HEADER_LEN + (self.csrc_count as usize) * CSRC_LEN
     }
 }
 
@@ -155,5 +160,18 @@ impl<'a> RtpPacket<'a> {
 
     pub fn payload(&self) -> &[u8] {
         &self.raw[self.payload_start..self.payload_end]
+    }
+
+    pub fn header_size(packet: &[u8]) -> Option<usize> {
+        let csrc_count = (packet[0] & 0x0f) as usize;
+
+        let mut size = FIXED_HEADER_LEN + csrc_count * CSRC_LEN;
+
+        if (packet[0] & 0x10) >> 4 != 0 {
+            let length_in_words = u16::from_be_bytes([packet[size + 2], packet[size + 3]]) as usize;
+            size += EXTENSION_HEADER_LEN + length_in_words * WORD_LEN;
+        }
+
+        Some(size)
     }
 }

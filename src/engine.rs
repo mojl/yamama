@@ -41,10 +41,10 @@ impl Engine {
 
     pub fn drive<'b>(
         &mut self,
-        packet: &[u8],
+        packet: &'b mut [u8],
         from: SocketAddr,
         peer: Option<&mut Peer>,
-        buffer: &'b mut Vec<u8>,
+        buffer: &mut Vec<u8>,
         actions: &mut Vec<Action>,
         authenticate: impl Fn(&str) -> Option<&str>,
     ) -> Option<RtpPacket<'b>> {
@@ -75,14 +75,16 @@ impl Engine {
             }
             PacketKind::Srtp => {
                 if let Some(peer) = peer {
-                    if peer.unprotect(packet, buffer) {
-                        return Some(RtpPacket::new(buffer));
+                    if let Some(n) = peer.unprotect(packet) {
+                        return Some(RtpPacket::new(&packet[..n]));
                     }
                 }
             }
             PacketKind::Srtcp => {
                 if let Some(peer) = peer {
-                    peer.unprotect_rtcp(packet, buffer);
+                    if let Some(n) = peer.unprotect_rtcp(packet) {
+                        return Some(RtpPacket::new(&packet[..n]));
+                    }
                 }
             }
             PacketKind::Unknown => log::debug!("ignoring unknown packet from {}", from),
