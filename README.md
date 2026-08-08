@@ -9,14 +9,15 @@ Yamama is a developer friendly and sans I/O WebRTC implementation in Rust.
 - Establishing SRTP
 - Encrypting and decrypting with SRTP
 - Parsing RTP
+- SCTP and data channels
 - Resequencing packets
 
-This is enough to write a basic SFU or a transport for an AI agent. Demos will be published soon.
+This is enough to write a basic SFU or a transport for an AI agent, the protocols are functional but only have the minimum needed for a WebRTC server to run. 
 
 ## Working on
 
+- Implementing DTLS and dropping OpenSSL
 - Getting closer to zero-copy
-- SCTP
 - Unit tests
 - Elimating potential panics (guard clauses around lengths)
 
