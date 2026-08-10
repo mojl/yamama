@@ -73,11 +73,11 @@ impl Init {
         let chunk_type = buffer[0];
         let flags = buffer[1];
         let length = u16::from_be_bytes([buffer[2], buffer[3]]);
-        let initiate_tag = u32::from_be_bytes([buffer[4], buffer[5], buffer[6], buffer[7]]);
-        let a_rwnd = u32::from_be_bytes([buffer[8], buffer[9], buffer[10], buffer[11]]);
+        let initiate_tag = u32::from_be_bytes(buffer[4..8].try_into().unwrap());
+        let a_rwnd = u32::from_be_bytes(buffer[8..12].try_into().unwrap());
         let outbound_streams = u16::from_be_bytes([buffer[12], buffer[13]]);
         let inbound_streams = u16::from_be_bytes([buffer[14], buffer[15]]);
-        let initial_tsn = u32::from_be_bytes([buffer[16], buffer[17], buffer[18], buffer[19]]);
+        let initial_tsn = u32::from_be_bytes(buffer[16..20].try_into().unwrap());
 
         Self {
             chunk_type,
@@ -188,10 +188,10 @@ impl Data {
         let b = (buffer[1] & 0x02) >> 1 == 1;
         let e = (buffer[1] & 0x01) == 1;
         let length = u16::from_be_bytes([buffer[2], buffer[3]]);
-        let tsn = u32::from_be_bytes([buffer[4], buffer[5], buffer[6], buffer[7]]);
+        let tsn = u32::from_be_bytes(buffer[4..8].try_into().unwrap());
         let stream_id = u16::from_be_bytes([buffer[8], buffer[9]]);
         let stream_seq = u16::from_be_bytes([buffer[10], buffer[11]]);
-        let payload_id = u32::from_be_bytes([buffer[12], buffer[13], buffer[14], buffer[15]]);
+        let payload_id = u32::from_be_bytes(buffer[12..16].try_into().unwrap());
         let data_start = HEADER_LEN + DATA_HEADER_LEN;
         let data_end = HEADER_LEN + length as usize;
 

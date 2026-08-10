@@ -152,7 +152,7 @@ impl SrtpContext {
         if buffer.len() < end {
             return None;
         }
-        let ssrc = u32::from_be_bytes([buffer[8], buffer[9], buffer[10], buffer[11]]);
+        let ssrc = u32::from_be_bytes(buffer[8..12].try_into().ok()?);
         let sequence_number = u16::from_be_bytes([buffer[2], buffer[3]]);
         let index = self.outbound.stream(ssrc).index_of(sequence_number);
 
@@ -177,7 +177,7 @@ impl SrtpContext {
     pub fn unprotect(&mut self, packet: &mut [u8]) -> Option<usize> {
         let end = packet.len().checked_sub(TAG_LEN)?;
         let start = RtpPacket::header_size(packet.get(..end)?)?;
-        let ssrc = u32::from_be_bytes([packet[8], packet[9], packet[10], packet[11]]);
+        let ssrc = u32::from_be_bytes(packet[8..12].try_into().ok()?);
         let sequence_number = u16::from_be_bytes([packet[2], packet[3]]);
         let index = self.inbound.stream(ssrc).index_of(sequence_number);
 

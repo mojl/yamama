@@ -82,7 +82,7 @@ impl RtpHeader {
         let has_extension = (packet[0] & 0x10) >> 4 != 0;
         let payload_type = packet[1] & 0x7f;
         let sequence_number = u16::from_be_bytes([packet[2], packet[3]]);
-        let ssrc = u32::from_be_bytes([packet[8], packet[9], packet[10], packet[11]]);
+        let ssrc = u32::from_be_bytes(packet[8..12].try_into().unwrap());
         Self {
             version,
             has_padding,

@@ -80,8 +80,8 @@ impl SctpHeader {
     fn parse(packet: &[u8]) -> Self {
         let source_port = u16::from_be_bytes([packet[0], packet[1]]);
         let destination_port = u16::from_be_bytes([packet[2], packet[3]]);
-        let verification_tag = u32::from_be_bytes([packet[4], packet[5], packet[6], packet[7]]);
-        let checksum = u32::from_le_bytes([packet[8], packet[9], packet[10], packet[11]]);
+        let verification_tag = u32::from_be_bytes(packet[4..8].try_into().unwrap());
+        let checksum = u32::from_le_bytes(packet[8..12].try_into().unwrap());
 
         Self {
             source_port,
