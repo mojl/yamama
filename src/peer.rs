@@ -64,7 +64,7 @@ impl Peer {
         None // unimplemented
     }
 
-    pub fn unprotect_rtcp(&mut self, packet: &mut [u8]) -> Option<usize> {
-        None // unimplemented
+    pub fn unprotect_srtcp(&mut self, packet: &mut [u8]) -> Option<usize> {
+        self.srtp.as_mut()?.unprotect_srtcp(packet)
     }
 }

@@ -77,11 +77,17 @@ impl SrtpContext {
         SrtpContext::derive(out_key, out_salt, RTP_KEY_LABEL, &mut outbound.rtp_key);
         SrtpContext::derive(out_key, out_salt, RTP_AUTH_LABEL, &mut outbound.rtp_auth);
         SrtpContext::derive(out_key, out_salt, RTP_SALT_LABEL, &mut outbound.rtp_salt);
+        SrtpContext::derive(out_key, out_salt, RTCP_KEY_LABEL, &mut outbound.rtcp_key);
+        SrtpContext::derive(out_key, out_salt, RTCP_AUTH_LABEL, &mut outbound.rtcp_auth);
+        SrtpContext::derive(out_key, out_salt, RTCP_SALT_LABEL, &mut outbound.rtcp_salt);
 
         let mut inbound = Session::default();
         SrtpContext::derive(in_key, in_salt, RTP_KEY_LABEL, &mut inbound.rtp_key);
         SrtpContext::derive(in_key, in_salt, RTP_AUTH_LABEL, &mut inbound.rtp_auth);
         SrtpContext::derive(in_key, in_salt, RTP_SALT_LABEL, &mut inbound.rtp_salt);
+        SrtpContext::derive(in_key, in_salt, RTCP_KEY_LABEL, &mut inbound.rtcp_key);
+        SrtpContext::derive(in_key, in_salt, RTCP_AUTH_LABEL, &mut inbound.rtcp_auth);
+        SrtpContext::derive(in_key, in_salt, RTCP_SALT_LABEL, &mut inbound.rtcp_salt);
 
         Ok(Self { outbound, inbound })
     }
@@ -111,23 +117,31 @@ impl SrtpContext {
     }
 
     fn cipher(
-        session: &Session,
+        key: &[u8; 16],
+        salt: &[u8; 14],
         packet: &mut [u8],
         start: usize,
         end: usize,
         ssrc: u32,
         index: u64,
     ) {
-        let iv = Self::iv(&session.rtp_salt, ssrc, index);
+        let iv = Self::iv(salt, ssrc, index);
 
-        let mut cipher = Ctr128BE::<Aes128>::new((&session.rtp_key).into(), (&iv).into());
+        let mut cipher = Ctr128BE::<Aes128>::new(key.into(), (&iv).into());
         cipher.apply_keystream(&mut packet[start..end]);
     }
 
-    fn authenticate(session: &Session, packet: &[u8], index: u64) -> Hmac<Sha1> {
-        let mut mac = Hmac::<Sha1>::new_from_slice(&session.rtp_auth).unwrap();
+    fn authenticate(auth: &[u8; 20], packet: &[u8], index: u64) -> Hmac<Sha1> {
+        let mut mac = Hmac::<Sha1>::new_from_slice(auth).unwrap();
         mac.update(packet);
         mac.update(&((index >> 16) as u32).to_be_bytes());
+
+        mac
+    }
+
+    fn authenticate_srtcp(auth: &[u8; 20], packet: &[u8]) -> Hmac<Sha1> {
+        let mut mac = Hmac::<Sha1>::new_from_slice(auth).unwrap();
+        mac.update(packet);
 
         mac
     }
@@ -142,9 +156,17 @@ impl SrtpContext {
         let sequence_number = u16::from_be_bytes([buffer[2], buffer[3]]);
         let index = self.outbound.stream(ssrc).index_of(sequence_number);
 
-        Self::cipher(&self.outbound, buffer, start, length, ssrc, index);
+        Self::cipher(
+            &self.outbound.rtp_key,
+            &self.outbound.rtp_salt,
+            buffer,
+            start,
+            end,
+            ssrc,
+            index,
+        );
 
-        let tag = Self::authenticate(&self.outbound, &buffer[..length], index)
+        let tag = Self::authenticate(&self.outbound.rtp_auth, &buffer[..length], index)
             .finalize()
             .into_bytes();
         buffer[length..end].copy_from_slice(&tag[..TAG_LEN]);
@@ -159,12 +181,48 @@ impl SrtpContext {
         let sequence_number = u16::from_be_bytes([packet[2], packet[3]]);
         let index = self.inbound.stream(ssrc).index_of(sequence_number);
 
-        Self::authenticate(&self.inbound, &packet[..end], index)
+        Self::authenticate(&self.inbound.rtp_auth, &packet[..end], index)
             .verify_truncated_left(&packet[end..])
             .ok()?;
 
-        Self::cipher(&self.inbound, packet, start, end, ssrc, index);
+        Self::cipher(
+            &self.inbound.rtp_key,
+            &self.inbound.rtp_salt,
+            packet,
+            start,
+            end,
+            ssrc,
+            index,
+        );
 
         Some(end)
+    }
+
+    pub fn unprotect_srtcp(&mut self, packet: &mut [u8]) -> Option<usize> {
+        let end = packet.len().checked_sub(TAG_LEN)?;
+        let payload_end = end.checked_sub(4)?;
+
+        Self::authenticate_srtcp(&self.inbound.rtcp_auth, &packet[..end])
+            .verify_truncated_left(&packet[end..])
+            .ok()?;
+
+        let trailer = u32::from_be_bytes(packet[payload_end..end].try_into().ok()?);
+        let encrypted = trailer >> 31 == 1;
+        let index = (trailer & 0x7fff_ffff) as u64;
+
+        if encrypted {
+            let ssrc = u32::from_be_bytes(packet[4..8].try_into().ok()?);
+            Self::cipher(
+                &self.inbound.rtcp_key,
+                &self.inbound.rtcp_salt,
+                packet,
+                8,
+                payload_end,
+                ssrc,
+                index,
+            );
+        }
+
+        Some(payload_end)
     }
 }

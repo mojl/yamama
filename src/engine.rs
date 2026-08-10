@@ -82,8 +82,9 @@ impl Engine {
             }
             PacketKind::Srtcp => {
                 if let Some(peer) = peer {
-                    if let Some(n) = peer.unprotect_rtcp(packet) {
-                        return Some(RtpPacket::new(&packet[..n]));
+                    if let Some(n) = peer.unprotect_srtcp(packet) {
+                        // return Some(RtcpPacket::new(&packet[..n]));
+                        log::trace!("recieved srtcp {} bytes", n);
                     }
                 }
             }
