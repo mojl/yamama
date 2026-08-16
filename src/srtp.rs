@@ -106,14 +106,9 @@ impl SrtpContext {
         let mut canvas = [0u8; 16];
         canvas[..14].copy_from_slice(salt);
 
-        for (canvas_byte, ssrc_byte) in canvas[4..8].iter_mut().zip(ssrc.to_be_bytes()) {
-            *canvas_byte ^= ssrc_byte;
-        }
-        for (canvas_byte, index_byte) in canvas[8..14].iter_mut().zip(&index.to_be_bytes()[2..]) {
-            *canvas_byte ^= index_byte;
-        }
+        let mask = ((ssrc as u128) << 64) | ((index as u128 & 0xffff_ffff_ffff) << 16);
 
-        canvas
+        (u128::from_be_bytes(canvas) ^ mask).to_be_bytes()
     }
 
     fn cipher(
