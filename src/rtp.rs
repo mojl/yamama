@@ -37,7 +37,7 @@ impl RtpExtension {
                     i += length;
                 }
             }
-            0x1000 => {
+            0x1000..=0x100f => {
                 while i < size {
                     if buffer[i] == 0 {
                         // skip the padding
